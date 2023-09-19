@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'pathname'
+require 'optparse'
+
+lib_path = Pathname.new(__dir__).join('..', 'lib').expand_path
+$LOAD_PATH.unshift(lib_path.to_s)
+
+require 'trans'
+
+options = {}
+
+parser = OptionParser.new do |opts|
+  opts.banner = 'Usage: mkv-scanner [options] <configuration-file>'
+
+  opts.on('-s', '--source SOURCE', 'Source directory to process')
+  opts.on('-d', '--destination DESTINATION', 'Destination directory')
+end
+
+parser.parse!(into: options)
+
+configuration_file = ARGV.shift
+
+required_option_values = [
+  options[:source],
+  options[:destination],
+  configuration_file
+]
+
+required_option_values.each do |value|
+  unless value
+    puts parser
+    exit 1
+  end
+end
+
+configuration_path = Pathname.new('.').join(configuration_file)
+source_path = Pathname(options[:source])
+destination_path = Pathname(options[:destination])
+
+configuration = Trans::ConfigurationFile.init(configuration_path)
+
+# TODO: make sure these directories exist
+source_directory = Trans::SourceDirectory.new(source_path)
+destination_directory = Trans::DestinationDirectory.new(destination_path)
+
+configured_sources = configuration.sources
+completed_movies = destination_directory.completed
+
+source_directory.sources.each do |source|
+  if configured_sources.include?(source) ||
+     completed_movies.include?(source.movie)
+    next
+  end
+
+  configuration.pending.push(source)
+end
+
+configuration.write_to(Pathname(configuration_file))
