@@ -9,10 +9,13 @@ module Trans
     end
 
     def with_entries(&)
-      @path.entries.each do |dir|
+      @path.entries.sort.each do |dir|
         next unless (matches = dir.to_s.match(DIRECTORY_NAME_PATTERN))
 
-        files = @path.join(dir).entries.select { |e| e.to_s.end_with?('.mkv') }
+        files = @path.join(dir).entries.sort.select do |e|
+          e.to_s.end_with?('.mkv')
+        end
+
         next if files.empty?
 
         elements = matches.named_captures
