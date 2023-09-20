@@ -1,0 +1,55 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'pathname'
+require 'optparse'
+
+lib_path = Pathname.new(__dir__).join('..', 'lib').expand_path
+$LOAD_PATH.unshift(lib_path.to_s)
+
+require 'trans'
+
+options = {}
+
+parser = OptionParser.new do |opts|
+  opts.banner = 'Usage: mkv-transcoder [options] <configuration-file>'
+
+  opts.on('-s', '--source SOURCE', 'Source directory to process')
+  opts.on('-d', '--destination DESTINATION', 'Destination directory')
+end
+
+parser.parse!(into: options)
+
+configuration_file = ARGV.shift
+
+required_option_values = [
+  options[:source],
+  options[:destination],
+  configuration_file
+]
+
+required_option_values.each do |value|
+  unless value
+    puts parser
+    exit 1
+  end
+end
+
+configuration_path = Pathname.new('.').join(configuration_file)
+source_path = Pathname(options[:source])
+destination_path = Pathname(options[:destination])
+
+configuration = Trans::ConfigurationFile.load(configuration_path)
+destination_directory = Trans::DestinationDirectory.new(destination_path)
+
+transcoded_movies = destination_directory.completed
+
+configuration.configured.each do |config|
+  if transcoded_movies.include?(config.source.movie)
+    # TODO: messaging
+    next
+  end
+
+  transcoder = Trans::Transcoder.new(config, source_path:, destination_path:)
+  transcoder.transcode
+end
