@@ -16,11 +16,11 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '>= 3.2.2'
 
-  spec.files = Dir['bin/*', 'lib/**/*.rb', 'Gemfile', 'trans.gemspec',
+  spec.files = Dir['bin/*', 'exe/*', 'lib/**/*.rb', 'Gemfile', 'trans.gemspec',
                    'README.md'] - ['bin/console', 'bin/setup']
 
-  # spec.bindir        = "exe"
-  # spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
+  spec.bindir        = 'exe'
+  spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib']
 
   spec.metadata['rubygems_mfa_required'] = 'true'
