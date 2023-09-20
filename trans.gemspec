@@ -16,13 +16,16 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '>= 3.2.2'
 
-  spec.files = Dir['lib/**/*.rb', 'README.md']
+  spec.files = Dir['bin/*', 'lib/**/*.rb', 'Gemfile', 'trans.gemspec',
+                   'README.md'] - ['bin/console', 'bin/setup']
 
   # spec.bindir        = "exe"
   # spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib']
 
   spec.metadata['rubygems_mfa_required'] = 'true'
+
+  spec.add_dependency 'video_transcoding', '~> 0.25.0'
 
   spec.add_development_dependency 'bundler', '~> 2.4'
   spec.add_development_dependency 'debug', '~> 1.8'

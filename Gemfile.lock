@@ -2,6 +2,7 @@ PATH
   remote: .
   specs:
     trans (0.1.0)
+      video_transcoding (~> 0.25.0)
 
 GEM
   remote: https://rubygems.org/
@@ -97,6 +98,7 @@ GEM
     stringio (3.0.8)
     thor (1.2.2)
     unicode-display_width (2.4.2)
+    video_transcoding (0.25.3)
 
 PLATFORMS
   arm64-darwin-22
