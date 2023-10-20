@@ -30,10 +30,27 @@ transcoding command can be run against the configuration.
 This is the first step to configure any sources that you wish to transcode:
 
 ```
-mkv-scanner --source ~/Movies --destination ~/Transcoded movies.yml
+mkv-scanner init --source ~/Movies --destination ~/Transcoded
 ```
 
-The `movies.yml` file will now contain all sources that need transcoding -- it
+This will create an initial configuration file (`~/.config/trans/config.yml`)
+that is used to scan and configure files in the source directory. If you want to
+override the config location, use the `--config` flag:
+
+```
+mkv-scanner \
+  --config ~/.movies-to-transcode.yml \
+  init \
+  --source ~/Movies --destination ~/Transcoded
+```
+
+You can now scan the configured source for matching files:
+
+```
+mkv-scanner scan
+```
+
+The `config.yml` file will now contain all sources that need transcoding -- it
 will exclude sources that already have a configuration stanza and those that are
 already present in the destination directory. For example, with this directory
 structure:
@@ -53,23 +70,27 @@ structure:
 This command:
 
 ```
-mkv-scanner --source Movies --destination Transcoded movies.yml
+mkv-scanner scan
 ```
 
 Will generate this configuration:
 
 ```yaml
 ---
-configured: []
-pending:
-  - source_file: Taxi Driver (1976)/t_00.mkv
-    movie:
-      title: Taxi Driver
-      year: "1976"
-    transcoding_options:
-      crop: auto
-      audio_track: "1"
-      subtitle_track: scan
+locations:
+  source: "~/Movies"
+  destination: "~/Transcoded"
+sources:
+  configured: []
+  pending:
+    - source_file: Taxi Driver (1976)/t_00.mkv
+      movie:
+        title: Taxi Driver
+        year: "1976"
+      transcoding_options:
+        crop: auto
+        audio_track: "1"
+        subtitle_track: scan
 ```
 
 The `mkv-scanner` command is designed to be idempotent when given the same
@@ -83,8 +104,10 @@ In the above configuration, you'll notice that all sources are grouped under the
 command:
 
 ```
-mkv-transcoder --source Movies --destination Transcoded  movies.yml
+mkv-transcoder
 ```
+
+> **Note:** You can specify an alternate config with the `--config` flag as well
 
 This will invoke [`Handbrake`][handbrake] on each of the configured sources and
 output them to the configured destination directory.
