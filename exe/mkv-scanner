@@ -9,52 +9,77 @@ $LOAD_PATH.unshift(lib_path.to_s)
 
 require 'trans'
 
+DEFAULT_SUBCOMMAND = 'scan'
+
 options = {}
 
-parser = OptionParser.new do |opts|
-  opts.banner = 'Usage: mkv-scanner [options] <configuration-file>'
-
-  opts.on('-s', '--source SOURCE', 'Source directory to process')
-  opts.on('-d', '--destination DESTINATION', 'Destination directory')
+global = OptionParser.new do |opts|
+  opts.on('-c', '--config [CONFIGURATION_FILE]', 'Path to configuration file')
 end
 
-parser.parse!(into: options)
+subcommands = {
+  'init' => OptionParser.new do |opts|
+    opts.banner = 'Usage: mkv-scanner init [options]'
+    opts.on('-s', '--source SOURCE', 'Source directory to process')
+    opts.on('-d', '--destination DESTINATION', 'Destination directory')
+  end,
+  'scan' => OptionParser.new do |opts|
+    opts.banner = 'Usage: mkv-scanner scan [options]'
+  end
+}
 
-configuration_file = ARGV.shift
+global.order!(into: options)
+subcommand = ARGV.shift || DEFAULT_SUBCOMMAND
+subcommands[subcommand].order!(into: options)
 
-required_option_values = [
-  options[:source],
-  options[:destination],
-  configuration_file
-]
+required_option_values = []
+
+if subcommand == 'init'
+  required_option_values = [
+    options[:source],
+    options[:destination]
+  ]
+end
 
 required_option_values.each do |value|
   unless value
-    puts parser
+    puts subcommands[subcommand]
     exit 1
   end
 end
 
-configuration_path = Pathname.new('.').join(configuration_file)
-source_path = Pathname(options[:source])
-destination_path = Pathname(options[:destination])
-
-configuration = Trans::ConfigurationFile.init(configuration_path)
-
-# TODO: make sure these directories exist
-source_directory = Trans::SourceDirectory.new(source_path)
-destination_directory = Trans::DestinationDirectory.new(destination_path)
-
-configured_sources = configuration.sources
-completed_movies = destination_directory.completed
-
-source_directory.sources.each do |source|
-  if configured_sources.include?(source) ||
-     completed_movies.include?(source.movie)
-    next
-  end
-
-  configuration.pending.push(source)
+configuration_path = options.fetch(:config) do
+  Pathname.new('~').join('.config', 'trans', 'config.yml')
 end
 
-configuration.write_to(Pathname(configuration_file))
+configuration_path = Pathname(configuration_path).expand_path.tap do |path|
+  path.dirname.mkpath
+end
+
+case subcommand
+when 'init'
+  source_path = Pathname(options[:source]).expand_path
+  destination_path = Pathname(options[:destination]).expand_path
+
+  Trans::ConfigurationFile.create(
+    configuration_path,
+    source_path:,
+    destination_path:
+  )
+when 'scan'
+  configuration = Trans::ConfigurationFile.load(configuration_path)
+
+  configured_sources = configuration.sources
+  completed_movies = configuration.destination_directory.completed
+
+  configuration.source_directory.sources.each do |source|
+    if configured_sources.include?(source) ||
+       completed_movies.include?(source.movie)
+      next
+    end
+
+    configuration.pending.push(source)
+  end
+
+  configuration.write_to(configuration_path)
+end

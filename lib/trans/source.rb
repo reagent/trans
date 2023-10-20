@@ -13,6 +13,10 @@ module Trans
       @file.to_s
     end
 
+    def <=>(other)
+      [movie.title, movie.year] <=> [other.movie.title, other.movie.year]
+    end
+
     def ==(other)
       other.instance_of?(self.class) &&
         movie == other.movie &&

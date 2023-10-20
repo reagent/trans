@@ -3,6 +3,7 @@
 require 'trans/version'
 require 'pathname'
 require 'yaml'
+require 'forwardable'
 
 module Trans
   class Error < StandardError; end
