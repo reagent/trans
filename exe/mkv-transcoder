@@ -12,37 +12,19 @@ require 'trans'
 options = {}
 
 parser = OptionParser.new do |opts|
-  opts.banner = 'Usage: mkv-transcoder [options] <configuration-file>'
+  opts.banner = 'Usage: mkv-transcoder [options]'
 
-  opts.on('-s', '--source SOURCE', 'Source directory to process')
-  opts.on('-d', '--destination DESTINATION', 'Destination directory')
+  opts.on('-c', '--config [CONFIGURATION_FILE]', 'Path to configuration file')
 end
 
 parser.parse!(into: options)
 
-configuration_file = ARGV.shift
-
-required_option_values = [
-  options[:source],
-  options[:destination],
-  configuration_file
-]
-
-required_option_values.each do |value|
-  unless value
-    puts parser
-    exit 1
-  end
+configuration_path = options.fetch(:config) do
+  Pathname.new('~').join('.config', 'trans', 'config.yml')
 end
 
-configuration_path = Pathname.new('.').join(configuration_file)
-source_path = Pathname(options[:source])
-destination_path = Pathname(options[:destination])
-
-configuration = Trans::ConfigurationFile.load(configuration_path)
-destination_directory = Trans::DestinationDirectory.new(destination_path)
-
-transcoded_movies = destination_directory.completed
+configuration = Trans::ConfigurationFile.load(Pathname(configuration_path))
+transcoded_movies = configuration.destination_directory.completed
 
 configuration.configured.each do |config|
   if transcoded_movies.include?(config.source.movie)
@@ -50,6 +32,11 @@ configuration.configured.each do |config|
     next
   end
 
-  transcoder = Trans::Transcoder.new(config, source_path:, destination_path:)
+  transcoder = Trans::Transcoder.new(
+    config,
+    source_path: configuration.locations.source,
+    destination_path: configuration.locations.destination
+  )
+
   transcoder.transcode
 end

@@ -2,6 +2,14 @@
 
 module Trans
   class ConfigurationFile
+    FileExistsError = Class.new(Trans::Error)
+
+    class MissingConfigurationError < Trans::Error
+      def initialize(key)
+        super("Missing configuration key: `#{key}`")
+      end
+    end
+
     class FileNotFoundError < Trans::Error
       def initialize(path)
         super("File not found: '#{path}'")
@@ -14,15 +22,24 @@ module Trans
       end
     end
 
-    def self.init(base, *rest)
-      file = Pathname.new(base).join(*rest)
+    extend Forwardable
 
-      if file.exist?
-        load(base, *rest)
-      else
-        configuration = new({})
-        configuration.write_to(base, *rest)
-      end
+    def_delegators :@sources, :pending, :configured
+
+    def self.create(path, source_path:, destination_path:)
+      path = Pathname(path)
+      raise FileExistsError, path if path.exist?
+
+      configuration = new(
+        {
+          'locations' => {
+            'source' => source_path,
+            'destination' => destination_path
+          }
+        }
+      )
+
+      configuration.write_to(path)
     end
 
     def self.load(base, *rest)
@@ -35,26 +52,34 @@ module Trans
       raise ParseError.new(e.class, e.message)
     end
 
-    def initialize(deserialized)
-      @deserialized = deserialized
+    attr_reader :locations
+
+    def initialize(attributes)
+      location_attributes = attributes.fetch('locations') do
+        raise MissingConfigurationError, 'locations'
+      end
+
+      @locations = Locations.new(location_attributes)
+      @sources = Sources.new(attributes.fetch('sources', {}))
+    end
+
+    def source_directory
+      SourceDirectory.new(@locations.source)
+    end
+
+    def destination_directory
+      DestinationDirectory.new(@locations.destination)
     end
 
     def sources
-      [configured, pending].flat_map(&:sources)
-    end
-
-    def pending
-      @pending ||= group('pending')
-    end
-
-    def configured
-      @configured ||= group('configured')
+      @sources.all.sort
     end
 
     def to_h
-      %w[configured pending].reduce({}) do |mapping, key|
-        mapping.merge(key => send(key).to_h)
-      end
+      {
+        'locations' => @locations.to_h,
+        'sources' => @sources.to_h
+      }
     end
 
     def write_to(base, *path)
@@ -63,10 +88,7 @@ module Trans
       self
     end
 
-    private
-
-    def group(label)
-      Group.new(label, @deserialized.fetch(label, []))
-    end
+    autoload :Locations, 'trans/configuration_file/locations'
+    autoload :Sources, 'trans/configuration_file/sources'
   end
 end

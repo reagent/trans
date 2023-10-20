@@ -1,7 +1,49 @@
 RSpec.describe Trans::ConfigurationFile do
   include Spec::FilesystemHelper
 
-  describe '.load' do
+  describe '.create', focus: true do
+    it 'creates a configuration file with the provided locations' do
+      with_temp_dir do |dir|
+        file = described_class.create(
+          dir.join('config.yml'),
+          source_path: dir.join('Sources'),
+          destination_path: dir.join('Transcoded')
+        )
+
+        aggregate_failures do
+          expect(file).to be_instance_of(Trans::ConfigurationFile)
+          expect(YAML.load_file(dir.join('config.yml'))).to eq(
+            {
+              'locations' => {
+                'source' => dir.join('Sources').to_s,
+                'destination' => dir.join('Transcoded').to_s
+              },
+              'sources' => {
+                'configured' => [],
+                'pending' => []
+              }
+            }
+          )
+        end
+      end
+    end
+
+    it 'raises an exception when the file already exists' do
+      with_temp_dir do |dir|
+        path = dir.join('config.yml').tap { |p| FileUtils.touch(p) }
+
+        expect do
+          described_class.create(
+            path,
+            source_path: 'Sources',
+            destination_path: 'Destination'
+          )
+        end.to raise_error(Trans::ConfigurationFile::FileExistsError)
+      end
+    end
+  end
+
+  describe '.load', focus: true do
     it 'raises an exception when the file does not exist' do
       with_temp_dir do |dir|
         expect { described_class.load(dir, 'missing.yml') }.to \
@@ -19,78 +61,42 @@ RSpec.describe Trans::ConfigurationFile do
     end
   end
 
-  describe '.init' do
-    context 'when the file does not exist' do
-      it 'creates an empty configuration file' do
-        with_temp_dir do |dir|
-          described_class.init(dir, 'missing.yml')
-
-          aggregate_failures do
-            file = dir.join('missing.yml')
-
-            expect(file).to exist
-            expect(YAML.load_file(file)).to eq({ 'pending' => [],
-                                                 'configured' => [] })
-          end
-        end
-      end
-
-      it 'returns the configuration' do
-        with_temp_dir do |dir|
-          configuration = described_class.init(dir, 'missing.yml')
-
-          expect(configuration).to be_instance_of(Trans::ConfigurationFile)
-          expect(configuration.to_h).to eq({ 'pending' => [],
-                                             'configured' => [] })
-        end
-      end
+  describe '#sources', focus: true do
+    it 'raises an exception when there are no locations provided' do
+      expect { described_class.new({}) }.to \
+        raise_error(Trans::ConfigurationFile::MissingConfigurationError)
     end
 
-    context 'when the file exists' do
-      it 'returns the file' do
-        with_temp_dir do |dir|
-          contents = {
-            'configured' => [],
-            'pending' => [
-              {
-                'movie' => { 'title' => 'The Goonies', 'year' => '1985' },
-                'source_file' => 'The Goonies (1985)/movie.mkv',
-                'transcoding_options' => { 'audio_track' => '1',
-                                           'crop' => 'auto', 'subtitle_track' => 'scan' }
-              }
-            ]
-          }
-
-          file = dir.join('config.yml')
-          file.write(YAML.dump(contents))
-
-          configuration = described_class.init(dir, 'config.yml')
-          expect(configuration.to_h).to eq(contents)
-        end
-      end
-    end
-  end
-
-  describe '#sources' do
     it 'is empty when there are no sources configured' do
-      subject = described_class.new({})
+      subject = described_class.new(
+        {
+          'locations' => {
+            'source' => 'Source', 'destination' => 'Destination'
+          }
+        }
+      )
+
       expect(subject.sources).to be_empty
     end
 
     it 'returns pending sources' do
       subject = described_class.new(
         {
-          'pending' => [
-            { 'movie' => { 'title' => 'The Goonies', 'year' => '1985' },
-              'source_file' => 'The Goonies (1985)/movie.mkv' }
-          ]
+          'locations' => { 'source' => 's', 'destination' => 'd' },
+          'sources' => {
+            'pending' => [
+              { 'movie' => { 'title' => 'The Goonies', 'year' => '1985' },
+                'source_file' => 'The Goonies (1985)/movie.mkv' }
+            ]
+          }
         }
       )
 
       sources = subject.sources
 
+      expect(sources.length).to eq(1)
+
       aggregate_failures do
-        expect(sources.length).to eq(1)
         expect(sources.first.movie.title).to eq('The Goonies')
         expect(sources.first.movie.year).to eq('1985')
         expect(sources.first.relative_path).to eq('The Goonies (1985)/movie.mkv')
@@ -100,24 +106,27 @@ RSpec.describe Trans::ConfigurationFile do
     it 'returns all sources' do
       subject = described_class.new(
         {
-          'configured' => [
-            { 'movie' => { 'title' => 'The Goonies', 'year' => '1985' },
-              'source_file' => 'The Goonies (1985)/movie.mkv' }
-          ],
-          'pending' => [
-            { 'movie' => { 'title' => 'Taxi Driver', 'year' => '1976' },
-              'source_file' => 'Taxi Driver (1976)/movie.mkv' }
-          ]
+          'locations' => { 'source' => 's', 'destination' => 'd' },
+          'sources' => {
+            'configured' => [
+              { 'movie' => { 'title' => 'The Goonies', 'year' => '1985' },
+                'source_file' => 'The Goonies (1985)/movie.mkv' }
+            ],
+            'pending' => [
+              { 'movie' => { 'title' => 'Taxi Driver', 'year' => '1976' },
+                'source_file' => 'Taxi Driver (1976)/movie.mkv' }
+            ]
+          }
         }
       )
 
       sources = subject.sources
 
-      aggregate_failures do
-        expect(sources.length).to eq(2)
+      expect(sources.length).to eq(2)
 
-        expect(sources.first.movie.title).to eq('The Goonies')
-        expect(sources.last.movie.title).to eq('Taxi Driver')
+      aggregate_failures do
+        expect(sources.first.movie.title).to eq('Taxi Driver')
+        expect(sources.last.movie.title).to eq('The Goonies')
       end
     end
   end
@@ -130,8 +139,8 @@ RSpec.describe Trans::ConfigurationFile do
 
         expect(YAML.load_file(dir.join('config.yml'))).to eq(
           {
-            'pending' => [],
-            'configured' => []
+            'locations' => { 'source' => '', 'destination' => '' },
+            'sources' => { 'pending' => [], 'configured' => [] }
           }
         )
       end
@@ -139,15 +148,22 @@ RSpec.describe Trans::ConfigurationFile do
 
     it 'writes a file with the provided sources' do
       with_temp_dir do |dir|
-        subject = described_class.new({})
+        subject = described_class.new(
+          { 'locations' => { source: 'Source', destination: 'Destination' } }
+        )
 
         goonies = Trans::Movie.new('The Goonies', '1985')
         taxi_driver = Trans::Movie.new('Taxi Driver', '1976')
 
-        goonies_source = Trans::Source.new(goonies,
-                                           'The Goonies (1985)/movie.mkv')
-        taxi_driver_source = Trans::Source.new(taxi_driver,
-                                               'Taxi Driver (1976)/movie.mkv')
+        goonies_source = Trans::Source.new(
+          goonies,
+          'The Goonies (1985)/movie.mkv'
+        )
+
+        taxi_driver_source = Trans::Source.new(
+          taxi_driver,
+          'Taxi Driver (1976)/movie.mkv'
+        )
 
         subject.configured.push(goonies_source)
         subject.pending.push(taxi_driver_source)
@@ -156,18 +172,22 @@ RSpec.describe Trans::ConfigurationFile do
 
         expect(YAML.load_file(dir.join('config.yml'))).to \
           eq({
-               'configured' => [
-                 { 'movie' => { 'title' => 'The Goonies', 'year' => '1985' },
-                   'source_file' => 'The Goonies (1985)/movie.mkv',
-                   'transcoding_options' => { 'audio_track' => '1',
-                                              'crop' => 'auto', 'subtitle_track' => 'scan' } }
-               ],
-               'pending' => [
-                 { 'movie' => { 'title' => 'Taxi Driver', 'year' => '1976' },
-                   'source_file' => 'Taxi Driver (1976)/movie.mkv',
-                   'transcoding_options' => { 'audio_track' => '1',
-                                              'crop' => 'auto', 'subtitle_track' => 'scan' } }
-               ]
+               'locations' => { 'source' => 'Source',
+                                'destination' => 'Destination' },
+               'sources' => {
+                 'configured' => [
+                   { 'movie' => { 'title' => 'The Goonies', 'year' => '1985' },
+                     'source_file' => 'The Goonies (1985)/movie.mkv',
+                     'transcoding_options' => { 'audio_track' => '1',
+                                                'crop' => 'auto', 'subtitle_track' => 'scan' } }
+                 ],
+                 'pending' => [
+                   { 'movie' => { 'title' => 'Taxi Driver', 'year' => '1976' },
+                     'source_file' => 'Taxi Driver (1976)/movie.mkv',
+                     'transcoding_options' => { 'audio_track' => '1',
+                                                'crop' => 'auto', 'subtitle_track' => 'scan' } }
+                 ]
+               }
              })
       end
     end
@@ -194,17 +214,19 @@ RSpec.describe Trans::ConfigurationFile do
 
         expect(YAML.load_file(dir.join('config.yml'))).to eq(
           {
-            'configured' => [
-              { 'movie' => { 'title' => 'The Goonies', 'year' => '1985' },
-                'source_file' => 'The Goonies (1985)/movie.mkv',
-                'transcoding_options' => { 'audio_track' => '1',
-                                           'crop' => 'auto', 'subtitle_track' => 'scan' } },
-              { 'movie' => { 'title' => 'Taxi Driver', 'year' => '1976' },
-                'source_file' => 'Taxi Driver (1976)/movie.mkv',
-                'transcoding_options' => { 'audio_track' => '1',
-                                           'crop' => 'auto', 'subtitle_track' => 'scan' } }
-            ],
-            'pending' => []
+            'sources' => {
+              'configured' => [
+                { 'movie' => { 'title' => 'The Goonies', 'year' => '1985' },
+                  'source_file' => 'The Goonies (1985)/movie.mkv',
+                  'transcoding_options' => { 'audio_track' => '1',
+                                             'crop' => 'auto', 'subtitle_track' => 'scan' } },
+                { 'movie' => { 'title' => 'Taxi Driver', 'year' => '1976' },
+                  'source_file' => 'Taxi Driver (1976)/movie.mkv',
+                  'transcoding_options' => { 'audio_track' => '1',
+                                             'crop' => 'auto', 'subtitle_track' => 'scan' } }
+              ],
+              'pending' => []
+            }
           }
         )
       end
