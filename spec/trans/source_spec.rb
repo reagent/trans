@@ -12,7 +12,7 @@ RSpec.describe Trans::Source do
       expect(one).not_to eq(two)
     end
 
-    it 'is not equal when provided with the same movie but differen files' do
+    it 'is not equal when provided with the same movie but different files' do
       movie = Trans::Movie.new('The Goonies', '1985')
 
       one = described_class.new(movie, Pathname.new('Source').join('one.mkv'))
