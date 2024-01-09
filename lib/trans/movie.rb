@@ -2,11 +2,12 @@
 
 module Trans
   class Movie
-    attr_reader :title, :year
+    attr_reader :title, :year, :file
 
-    def initialize(title, year)
+    def initialize(title, year, file)
       @title = title
       @year = year
+      @file = file
     end
 
     def ==(other)

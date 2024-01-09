@@ -37,20 +37,20 @@ RSpec.describe Trans::SourceDirectory do
         first, second, third = sources
 
         aggregate_failures do
-          expect(first.movie.title).to eq('Scarface')
-          expect(first.movie.year).to eq('1983')
+          expect(first.medium.title).to eq('Scarface')
+          expect(first.medium.year).to eq('1983')
           expect(first.relative_path).to eq('Scarface (1983)/one.mkv')
         end
 
         aggregate_failures do
-          expect(second.movie.title).to eq('Scarface')
-          expect(second.movie.year).to eq('1983')
+          expect(second.medium.title).to eq('Scarface')
+          expect(second.medium.year).to eq('1983')
           expect(second.relative_path).to eq('Scarface (1983)/two.mkv')
         end
 
         aggregate_failures do
-          expect(third.movie.title).to eq('Taxi Driver')
-          expect(third.movie.year).to eq('1976')
+          expect(third.medium.title).to eq('Taxi Driver')
+          expect(third.medium.year).to eq('1976')
           expect(third.relative_path).to eq('Taxi Driver (1976)/source.mkv')
         end
       end

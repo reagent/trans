@@ -1,6 +1,15 @@
 # frozen_string_literal: true
 
 module Trans
+  class MovieStanza
+  end
+
+  class TvShowStanza
+    def initialize(tv_show, _transcoding_options = {})
+      @tv_show = tv_show
+    end
+  end
+
   class Stanza
     def self.build(attrs)
       movie = Trans::Movie.new(
@@ -39,11 +48,10 @@ module Trans
 
     def to_h
       {
+        'type' => 'movie',
+        'title' => @source.medium.title,
+        'year' => @source.medium.year,
         'source_file' => source_path,
-        'movie' => {
-          'title' => @source.movie.title,
-          'year' => @source.movie.year
-        },
         'transcoding_options' => {
           'crop' => crop,
           'audio_track' => audio_track,

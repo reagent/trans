@@ -74,7 +74,7 @@ when 'scan'
 
   configuration.source_directory.sources.each do |source|
     if configured_sources.include?(source) ||
-       completed_movies.include?(source.movie)
+       completed_movies.include?(source.medium)
       next
     end
 

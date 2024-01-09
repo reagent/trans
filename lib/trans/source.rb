@@ -2,24 +2,23 @@
 
 module Trans
   class Source
-    attr_reader :movie
+    attr_reader :medium
 
-    def initialize(movie, file)
-      @movie = movie
-      @file = file
+    def initialize(medium)
+      @medium = medium
     end
 
     def relative_path
-      @file.to_s
+      @medium.file.to_s
     end
 
     def <=>(other)
-      [movie.title, movie.year] <=> [other.movie.title, other.movie.year]
+      [medium.title, medium.year] <=> [other.medium.title, other.medium.year]
     end
 
     def ==(other)
       other.instance_of?(self.class) &&
-        movie == other.movie &&
+        medium == other.medium &&
         relative_path == other.relative_path
     end
   end

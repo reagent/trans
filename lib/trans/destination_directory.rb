@@ -9,7 +9,7 @@ module Trans
 
     def completed
       [].tap do |completed|
-        @scanner.with_entries { |_d, movie| completed << movie }
+        @scanner.with_media { |medium| completed << medium }
       end
     end
   end
